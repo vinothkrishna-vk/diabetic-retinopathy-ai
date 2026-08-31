@@ -2,11 +2,23 @@ import os
 import numpy as np
 import streamlit as st
 import torch
+
 from PIL import Image
 from lime import lime_image
 from skimage.segmentation import mark_boundaries
 from torch import nn
 from torchvision import models, transforms
+
+
+# ============================================================
+# PAGE CONFIGURATION
+# ============================================================
+
+st.set_page_config(
+    page_title="Explainable Diabetic Retinopathy AI",
+    page_icon="👁️",
+    layout="wide"
+)
 
 
 # ============================================================
@@ -30,79 +42,90 @@ CLASS_NAMES = [
 
 
 # ============================================================
-# PAGE CONFIGURATION
+# DR INFORMATION
 # ============================================================
 
-st.set_page_config(
-    page_title="Explainable Diabetic Retinopathy AI",
-    page_icon="👁️",
-    layout="wide"
-)
+DR_INFORMATION = {
 
+    0: {
+        "stage": "No Diabetic Retinopathy",
+        "description":
+            "The model classified the submitted image as "
+            "Grade 0 within the five-class diabetic retinopathy "
+            "classification system.",
+        "meaning":
+            "No diabetic retinopathy category is predicted by "
+            "the model for this image."
+    },
 
-# ============================================================
-# CUSTOM CSS
-# ============================================================
+    1: {
+        "stage": "Mild Diabetic Retinopathy",
+        "description":
+            "The model classified the submitted image as "
+            "Grade 1, corresponding to mild diabetic retinopathy "
+            "within the classification system.",
+        "meaning":
+            "This represents an early category of diabetic "
+            "retinopathy in the five-level grading system."
+    },
 
-st.markdown(
-    """
-    <style>
+    2: {
+        "stage": "Moderate Diabetic Retinopathy",
+        "description":
+            "The model classified the submitted image as "
+            "Grade 2, corresponding to moderate diabetic "
+            "retinopathy.",
+        "meaning":
+            "This represents an intermediate category in the "
+            "five-level grading system."
+    },
 
-    .main-title {
-        font-size: 40px;
-        font-weight: 700;
-        margin-bottom: 5px;
+    3: {
+        "stage": "Severe Diabetic Retinopathy",
+        "description":
+            "The model classified the submitted image as "
+            "Grade 3, corresponding to severe diabetic "
+            "retinopathy.",
+        "meaning":
+            "This represents an advanced category in the "
+            "five-level grading system."
+    },
+
+    4: {
+        "stage": "Proliferative Diabetic Retinopathy",
+        "description":
+            "The model classified the submitted image as "
+            "Grade 4, corresponding to proliferative diabetic "
+            "retinopathy.",
+        "meaning":
+            "This is the highest category in the five-level "
+            "classification system."
     }
-
-    .subtitle {
-        font-size: 18px;
-        color: #666666;
-        margin-bottom: 20px;
-    }
-
-    .grade-box {
-        padding: 20px;
-        border-radius: 12px;
-        border: 1px solid #dddddd;
-        margin-top: 10px;
-        margin-bottom: 10px;
-    }
-
-    .grade-number {
-        font-size: 30px;
-        font-weight: 700;
-    }
-
-    .grade-name {
-        font-size: 20px;
-        margin-top: 5px;
-    }
-
-    </style>
-    """,
-    unsafe_allow_html=True
-)
+}
 
 
 # ============================================================
 # HEADER
 # ============================================================
 
-st.markdown(
-    '<div class="main-title">👁️ Explainable Diabetic Retinopathy AI</div>',
-    unsafe_allow_html=True
+st.title(
+    "👁️ Explainable Diabetic Retinopathy AI"
 )
 
-st.markdown(
-    '<div class="subtitle">'
-    'AI-assisted diabetic retinopathy grading with LIME-based explainability'
-    '</div>',
-    unsafe_allow_html=True
+st.write(
+    "AI-assisted diabetic retinopathy grading with "
+    "interpretable LIME explanations."
+)
+
+st.caption(
+    "EfficientNet-B0 • Five-Class Classification • "
+    "LIME Explainability"
 )
 
 st.warning(
-    "⚠️ Prototype for educational/research demonstration only. "
-    "This system is not a medical diagnosis."
+    "Educational and research prototype only. "
+    "The output is not a medical diagnosis and should not "
+    "replace evaluation by a qualified healthcare professional."
 )
 
 
@@ -140,7 +163,10 @@ def load_model():
     return model, device
 
 
-# Load model safely
+# ============================================================
+# LOAD MODEL SAFELY
+# ============================================================
+
 try:
 
     model, device = load_model()
@@ -161,7 +187,10 @@ except Exception as e:
 # ============================================================
 
 transform = transforms.Compose([
-    transforms.Resize((224, 224)),
+
+    transforms.Resize(
+        (224, 224)
+    ),
 
     transforms.ToTensor(),
 
@@ -173,15 +202,10 @@ transform = transforms.Compose([
 
 
 # ============================================================
-# MODEL PREDICTION FUNCTION
+# MODEL PREDICTION
 # ============================================================
 
 def predict_image(image):
-
-    """
-    Runs the EfficientNet-B0 model on a single image.
-    Returns predicted class and probabilities.
-    """
 
     input_tensor = transform(
         image
@@ -220,14 +244,6 @@ def predict_image(image):
 # ============================================================
 
 def predict_for_lime(images):
-
-    """
-    Prediction function required by LIME.
-
-    LIME sends multiple modified versions of the image.
-    This function converts those images into tensors and
-    returns model probabilities.
-    """
 
     batch = []
 
@@ -274,7 +290,7 @@ def predict_for_lime(images):
 
 
 # ============================================================
-# LIME EXPLANATION FUNCTION
+# LIME EXPLANATION
 # ============================================================
 
 def generate_lime_explanation(
@@ -282,12 +298,10 @@ def generate_lime_explanation(
     predicted_class
 ):
 
-    """
-    Generates a LIME explanation for the predicted DR class.
-    """
-
     image_array = np.array(
-        image.resize((224, 224))
+        image.resize(
+            (224, 224)
+        )
     ).astype(
         np.float32
     ) / 255.0
@@ -328,13 +342,20 @@ def generate_lime_explanation(
 
 
 # ============================================================
-# FILE UPLOADER
+# SECTION 1 — UPLOAD
 # ============================================================
 
-st.subheader("📤 Upload Retinal Fundus Image")
+st.header(
+    "1. Upload Retinal Fundus Image"
+)
+
+st.write(
+    "Upload a JPG, JPEG, or PNG retinal fundus image "
+    "for AI-assisted classification."
+)
 
 uploaded_file = st.file_uploader(
-    "Choose a JPG, JPEG or PNG retinal fundus image",
+    "Choose a retinal fundus image",
     type=[
         "jpg",
         "jpeg",
@@ -344,10 +365,14 @@ uploaded_file = st.file_uploader(
 
 
 # ============================================================
-# IMAGE ANALYSIS
+# IMAGE PROCESSING
 # ============================================================
 
 if uploaded_file is not None:
+
+    # ========================================================
+    # OPEN IMAGE
+    # ========================================================
 
     try:
 
@@ -364,34 +389,48 @@ if uploaded_file is not None:
         st.stop()
 
 
-    # --------------------------------------------------------
-    # DISPLAY UPLOADED IMAGE
-    # --------------------------------------------------------
+    # ========================================================
+    # SECTION 2 — IMAGE
+    # ========================================================
 
-    st.subheader("🖼️ Uploaded Image")
-
-    st.image(
-        image,
-        caption="Uploaded Fundus Image",
-        width=600
+    st.header(
+        "2. Uploaded Image"
     )
 
+    col1, col2, col3 = st.columns(
+        [1, 2, 1]
+    )
 
-    # --------------------------------------------------------
+    with col2:
+
+        st.image(
+            image,
+            caption="Retinal Fundus Image",
+            width="stretch"
+        )
+
+
+    # ========================================================
     # ANALYZE BUTTON
-    # --------------------------------------------------------
+    # ========================================================
+
+    st.write("")
 
     analyze = st.button(
-        "🔍 Analyze Image",
+        "🔍 Analyze Retinal Image",
         type="primary",
         width="stretch"
     )
 
 
+    # ========================================================
+    # ANALYSIS
+    # ========================================================
+
     if analyze:
 
         # ====================================================
-        # MODEL PREDICTION
+        # PREDICTION
         # ====================================================
 
         with st.spinner(
@@ -404,54 +443,23 @@ if uploaded_file is not None:
 
 
         # ====================================================
-        # CONFIDENCE / UNCERTAINTY SAFEGUARD
+        # SECTION 3 — PREDICTION
         # ====================================================
 
-        if confidence < CONFIDENCE_THRESHOLD:
-
-            st.subheader(
-                "⚠️ Uncertain Prediction"
-            )
-
-            st.warning(
-                f"The model confidence is "
-                f"**{confidence * 100:.2f}%**, which is below "
-                f"the configured confidence threshold of "
-                f"**{CONFIDENCE_THRESHOLD * 100:.0f}%**."
-            )
-
-            st.info(
-                "Please upload a clear retinal fundus image "
-                "for a more reliable analysis."
-            )
-
-            st.caption(
-                "The system does not provide a DR grade when "
-                "the model is insufficiently confident."
-            )
-
-            st.stop()
-
-
-        # ====================================================
-        # PREDICTION RESULTS
-        # ====================================================
-
-        st.subheader(
-            "🧠 AI Prediction"
+        st.header(
+            "3. AI Prediction"
         )
 
-        col1, col2 = st.columns(2)
+
+        prediction_col1, prediction_col2 = st.columns(
+            2
+        )
 
 
-        # ----------------------------------------------------
-        # DR GRADE
-        # ----------------------------------------------------
-
-        with col1:
+        with prediction_col1:
 
             st.metric(
-                "DR Grade",
+                "Predicted DR Grade",
                 f"Grade {predicted_class}"
             )
 
@@ -460,11 +468,7 @@ if uploaded_file is not None:
             )
 
 
-        # ----------------------------------------------------
-        # CONFIDENCE
-        # ----------------------------------------------------
-
-        with col2:
+        with prediction_col2:
 
             st.metric(
                 "Model Confidence",
@@ -472,25 +476,66 @@ if uploaded_file is not None:
             )
 
 
-        # ----------------------------------------------------
-        # RESULT MESSAGE
-        # ----------------------------------------------------
+        # ====================================================
+        # CONFIDENCE STATUS
+        # ====================================================
 
-        st.success(
-            f"DR Grade {predicted_class}: "
-            f"{CLASS_NAMES[predicted_class]}"
-        )
+        if confidence >= CONFIDENCE_THRESHOLD:
+
+            st.success(
+                f"Model confidence is above the configured "
+                f"{CONFIDENCE_THRESHOLD * 100:.0f}% threshold."
+            )
+
+        else:
+
+            st.warning(
+                f"Low-confidence prediction: "
+                f"{confidence * 100:.2f}% "
+                f"(threshold: "
+                f"{CONFIDENCE_THRESHOLD * 100:.0f}%)."
+            )
+
+            st.info(
+                "The model's predicted class is shown for "
+                "demonstration, but this result should be "
+                "treated with additional caution."
+            )
 
 
         # ====================================================
-        # CLASS PROBABILITIES
+        # PREDICTED CLASS
         # ====================================================
 
         st.subheader(
-            "📊 Classification Probabilities"
+            "Predicted Classification"
         )
 
-        for i, probability in enumerate(probabilities):
+        st.write(
+            f"### Grade {predicted_class}"
+        )
+
+        st.write(
+            f"**{CLASS_NAMES[predicted_class]}**"
+        )
+
+
+        # ====================================================
+        # SECTION 4 — PROBABILITIES
+        # ====================================================
+
+        st.header(
+            "4. Classification Probabilities"
+        )
+
+        st.write(
+            "The following values represent the model's "
+            "predicted probability for each classification."
+        )
+
+        for i, probability in enumerate(
+            probabilities
+        ):
 
             st.write(
                 f"**Grade {i} — {CLASS_NAMES[i]}**"
@@ -506,22 +551,23 @@ if uploaded_file is not None:
 
 
         # ====================================================
-        # LIME EXPLAINABILITY
+        # SECTION 5 — LIME
         # ====================================================
 
-        st.subheader(
-            "🔍 Explainable AI — LIME"
+        st.header(
+            "5. Explainable AI — LIME"
         )
 
         st.write(
-            "LIME identifies image regions that influenced "
-            "the model's prediction."
+            "LIME provides a local explanation of the "
+            "model's prediction by identifying image regions "
+            "that influenced the predicted class."
         )
 
 
-        # ----------------------------------------------------
-        # Generate LIME
-        # ----------------------------------------------------
+        # ====================================================
+        # GENERATE LIME
+        # ====================================================
 
         with st.spinner(
             "Generating LIME explanation..."
@@ -548,39 +594,52 @@ if uploaded_file is not None:
 
 
         # ====================================================
-        # DISPLAY ORIGINAL AND LIME
+        # ORIGINAL + LIME
         # ====================================================
 
-        col1, col2 = st.columns(2)
+        lime_col1, lime_col2 = st.columns(
+            2
+        )
 
 
-        with col1:
+        with lime_col1:
+
+            st.subheader(
+                "Original Fundus Image"
+            )
 
             st.image(
-                image.resize((224, 224)),
-                caption="Original Fundus Image",
+                image.resize(
+                    (224, 224)
+                ),
+                caption="Original Image",
                 width="stretch"
             )
 
 
-        with col2:
+        with lime_col2:
+
+            st.subheader(
+                "LIME Explanation"
+            )
 
             st.image(
                 lime_visualization,
-                caption="LIME Explanation",
+                caption="LIME Visualization",
                 width="stretch"
             )
 
 
-        # ====================================================
-        # LIME EXPLANATION
-        # ====================================================
-
         st.success(
-            "LIME highlights regions that influenced "
-            "the model's prediction."
+            "The highlighted regions represent areas "
+            "identified by LIME as influential to the "
+            "model's prediction."
         )
 
+
+        # ====================================================
+        # HOW LIME WORKS
+        # ====================================================
 
         with st.expander(
             "🧩 How does LIME work?"
@@ -592,49 +651,63 @@ if uploaded_file is not None:
             )
 
             st.write(
-                "LIME explains an individual prediction by "
-                "creating modified versions of the input image "
-                "and observing how the model's prediction changes."
+                "For an individual image, LIME creates "
+                "multiple modified versions of the image "
+                "and observes how the model's predictions "
+                "change."
             )
 
             st.write(
-                "The image is divided into smaller meaningful "
-                "regions called superpixels. LIME identifies "
-                "regions that have greater influence on the "
-                "predicted DR class."
+                "The image is divided into smaller regions "
+                "called superpixels. LIME determines which "
+                "regions have greater influence on the "
+                "specific prediction."
+            )
+
+            st.write(
+                "The explanation is local, meaning it "
+                "describes the model's reasoning for this "
+                "particular image rather than explaining "
+                "the entire model."
             )
 
 
         # ====================================================
-        # DR GRADING INFORMATION
+        # SECTION 6 — DR GRADING
         # ====================================================
 
-        st.subheader(
-            "📚 Diabetic Retinopathy Grading"
+        st.header(
+            "6. Diabetic Retinopathy Grading"
         )
 
         grading_data = [
+
             (
                 "Grade 0",
                 "No Diabetic Retinopathy"
             ),
+
             (
                 "Grade 1",
                 "Mild Diabetic Retinopathy"
             ),
+
             (
                 "Grade 2",
                 "Moderate Diabetic Retinopathy"
             ),
+
             (
                 "Grade 3",
                 "Severe Diabetic Retinopathy"
             ),
+
             (
                 "Grade 4",
                 "Proliferative Diabetic Retinopathy"
             )
         ]
+
 
         for grade, description in grading_data:
 
@@ -643,18 +716,131 @@ if uploaded_file is not None:
             )
 
 
+        # ====================================================
+        # SECTION 7 — RESULT INTERPRETATION
+        # ====================================================
+
+        st.header(
+            "7. Result Interpretation"
+        )
+
+        selected_info = DR_INFORMATION[
+            predicted_class
+        ]
+
+
+        st.subheader(
+            selected_info["stage"]
+        )
+
+        st.write(
+            selected_info["description"]
+        )
+
+        st.write(
+            selected_info["meaning"]
+        )
+
+
+        # ====================================================
+        # TECHNICAL SUMMARY
+        # ====================================================
+
+        st.header(
+            "8. Technical Summary"
+        )
+
+        technical_col1, technical_col2 = st.columns(
+            2
+        )
+
+
+        with technical_col1:
+
+            st.write(
+                "**Model**"
+            )
+
+            st.write(
+                "EfficientNet-B0"
+            )
+
+            st.write(
+                "**Input Size**"
+            )
+
+            st.write(
+                "224 × 224 pixels"
+            )
+
+            st.write(
+                "**Number of Classes**"
+            )
+
+            st.write(
+                "5"
+            )
+
+
+        with technical_col2:
+
+            st.write(
+                "**Explainability Method**"
+            )
+
+            st.write(
+                "LIME"
+            )
+
+            st.write(
+                "**LIME Samples**"
+            )
+
+            st.write(
+                "100"
+            )
+
+            st.write(
+                "**LIME Features**"
+            )
+
+            st.write(
+                "10 superpixels"
+            )
+
+
+        # ====================================================
+        # FINAL DISCLAIMER
+        # ====================================================
+
+        st.header(
+            "9. Important Disclaimer"
+        )
+
+        st.warning(
+            "This application is an educational and research "
+            "prototype. Its predictions and LIME explanations "
+            "are generated by an AI model and should not be "
+            "used as a medical diagnosis or as a substitute "
+            "for evaluation by a qualified healthcare professional."
+        )
+
+
 # ============================================================
 # FOOTER
 # ============================================================
 
-st.markdown("---")
+st.divider()
 
 st.caption(
-    "AI-assisted diabetic retinopathy screening prototype | "
-    "EfficientNet-B0 + LIME"
+    "👁️ Explainable Diabetic Retinopathy AI"
 )
 
 st.caption(
-    "For educational and research demonstration only. "
-    "Not intended for medical diagnosis."
+    "EfficientNet-B0 Classification • LIME Explainability"
+)
+
+st.caption(
+    "Educational and research demonstration only • "
+    "Not intended for medical diagnosis"
 )
