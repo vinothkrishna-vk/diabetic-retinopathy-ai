@@ -1,6 +1,7 @@
 streamlit==1.62.0
 torch==2.13.0
 torchvision==0.28.0
-grad-cam
 Pillow
 numpy
+lime
+scikit-image
